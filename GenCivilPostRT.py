@@ -46,7 +46,7 @@ class GenCivilPostRT:
         return True
 
     def PrintDescription(self):
-        print('Parameters: "Base Civil Path" "Test Target Civil Path" "Model File Path" "Export Result File Path"')
+        print('Parameters: "Base Civil Path" "Test Target Civil Path" "Model File Path" "Export Result File Path" "Export Report File Path" "Tolerance"')
         return
 
     def Run(self) -> bool:
