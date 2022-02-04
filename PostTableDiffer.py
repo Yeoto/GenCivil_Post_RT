@@ -1,10 +1,8 @@
-from inspect import getargvalues
+#-*- coding: utf-8 -*-
 from math import fabs
 from os import path
-from io import TextIOWrapper
 import re
-from tkinter import Toplevel
-from junit_xml import TestSuite, TestCase
+from junit_xml_custom import TestSuite, TestCase
 
 class DiffException(Exception):
     Error_Code = str
@@ -42,11 +40,15 @@ class PostTableDiffer:
 
     def RunDiff(self, report_path: str) -> bool:
         ts_list = []
-        for File_Name, LinePosSpan_Tgt in self.Target_Table.items():
+        list_table_keys = list(self.Target_Table.keys())
+        for File_Name in list_table_keys:
+            print('{0}/{1} : {2}'.format(list_table_keys.index(File_Name), len(list_table_keys), File_Name))
+
             if File_Name not in self.Base_Table:
                 continue
 
             LinePosSpan_Base = self.Base_Table[File_Name]
+            LinePosSpan_Tgt = self.Target_Table[File_Name]
 
             Base_File_Path = LinePosSpan_Base[0]
             Tgt_File_Path = LinePosSpan_Tgt[0]
@@ -112,8 +114,8 @@ class PostTableDiffer:
             ts = TestSuite('Post Table RT : ' + File_Name, tc_list)
             ts_list.append(ts)
 
-        with open(report_path, 'w', encoding='euc-kr') as f:
-            TestSuite.to_file(f, ts_list, prettyprint=True)
+        with open(report_path, 'w', encoding='utf-8') as f:
+            TestSuite.to_file(f, ts_list, prettyprint=True, encoding='utf-8')
         return 
 
     def Parse_TableData(self, file_list):

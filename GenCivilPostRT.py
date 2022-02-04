@@ -69,17 +69,21 @@ class GenCivilPostRT:
             file_name = path.basename(file)
             copyfile(file, FES_Src_Path + "\\" + file_name)
 
+        print('Exporting Data...')
         if EXPORT_NEW_DATA == True:
             if self.Base_Cvl_Exe_Path != '':
                 subprocess.run([self.Base_Cvl_Exe_Path, '/PRT', FES_Opt_FullPath])
             subprocess.run([self.Test_Cvl_Exe_Path, '/PRT', MEC_Opt_FullPath])
+        print('Exporting Data...Done!')
 
         FES_Result_list = [path.join(FES_Tgt_Path, f) for f in listdir(FES_Tgt_Path) if path.splitext(f)[1] == '.csv' and path.isfile(path.join(FES_Tgt_Path, f))]
         MEC_Result_list = [path.join(MEC_Tgt_Path, f) for f in listdir(MEC_Tgt_Path) if path.splitext(f)[1] == '.csv' and path.isfile(path.join(MEC_Tgt_Path, f))]
 
+        print('Find Difference From Table Result File...')
         Differ = PostTableDiffer(self.Tolerance)
         Differ.InitializeTableData(FES_Result_list, MEC_Result_list)
         Differ.RunDiff(self.Report_Path)
+        print('Find Difference From Table Result File...Done!')
         return True
 
 if __name__ == "__main__":
