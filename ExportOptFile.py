@@ -1,5 +1,6 @@
 import os
 import shutil
+import glob
 
 class ExportOptFile:
     list_Opt = []
@@ -23,12 +24,27 @@ class ExportOptFile:
         self.list_Opt += list_additional_Opt
         self.Analysis_From = Analysis_From
 
+    def GetPKID(self) -> str:
+        license_path = glob.glob("\\\\midasitdev\\100_Dev\\Pub\\Midas Lock Number\\*라이선스.txt")[0]
+        f_license = open(license_path, 'r')
+
+        for line in f_license.readlines():
+            if line.find('PKID') == -1:
+                continue
+
+            line = line.strip()
+            return line[-16:]
+        return ''
+
     def Export(self, Export_New_Data: bool = True) -> None:
         if not os.path.isdir(self.Export_Path):
             os.makedirs(self.Export_Path)
         
         self.FileFullPath = self.Export_Path + '\\' + self.Analysis_From + '_PostRT.csv'
         f = open(self.FileFullPath, 'w')
+
+        PKID = self.GetPKID()
+        f.write('PKID=' + PKID + '\n')
 
         for Opt_String in self.list_Opt:
             f.write('OPT='+Opt_String+'\n')
@@ -55,8 +71,7 @@ class ExportOptFile:
         return self.Src_Path, self.Tgt_Path, self.FileFullPath
 
 if __name__ == "__main__":
-    Exporter = ExportOptFile()
-    Exporter.Initialize('C:\\MIDAS\\MODEL\\POST RT', 'MEC')
+    Exporter = ExportOptFile('C:\\MIDAS\\MODEL\\POST RT', 'MEC')
     Exporter.Export()
 
     print(Exporter.GetPath())

@@ -1,4 +1,3 @@
-from ast import arg
 from ExportOptFile import ExportOptFile
 import sys
 from os import path
@@ -29,8 +28,11 @@ class GenCivilPostRT:
         self.Base_Cvl_Exe_Path = argv[1]
         self.Test_Cvl_Exe_Path = argv[2]
 
-        if not path.isfile(self.Base_Cvl_Exe_Path) or not path.isfile(self.Test_Cvl_Exe_Path):
+        if not path.isfile(self.Test_Cvl_Exe_Path):
             return False
+
+        if not path.isfile(self.Base_Cvl_Exe_Path):
+            self.Base_Cvl_Exe_Path = ''
 
         Model_From_Path = argv[3]
         self.file_list = [path.join(Model_From_Path, f) for f in listdir(Model_From_Path) if path.splitext(f)[1] == '.mcb' and path.isfile(path.join(Model_From_Path, f))]
@@ -51,7 +53,7 @@ class GenCivilPostRT:
 
     def Run(self) -> bool:
         FESOptFile = ExportOptFile(self.Export_Path, "FES")
-        FESOptFile.Export(EXPORT_NEW_DATA)
+        FESOptFile.Export(EXPORT_NEW_DATA and self.Base_Cvl_Exe_Path != '')
 
         FES_Src_Path, FES_Tgt_Path, FES_Opt_FullPath = FESOptFile.GetPath()
 
@@ -68,7 +70,8 @@ class GenCivilPostRT:
             copyfile(file, FES_Src_Path + "\\" + file_name)
 
         if EXPORT_NEW_DATA == True:
-            subprocess.run([self.Base_Cvl_Exe_Path, '/PRT', FES_Opt_FullPath])
+            if self.Base_Cvl_Exe_Path != '':
+                subprocess.run([self.Base_Cvl_Exe_Path, '/PRT', FES_Opt_FullPath])
             subprocess.run([self.Test_Cvl_Exe_Path, '/PRT', MEC_Opt_FullPath])
 
         FES_Result_list = [path.join(FES_Tgt_Path, f) for f in listdir(FES_Tgt_Path) if path.splitext(f)[1] == '.csv' and path.isfile(path.join(FES_Tgt_Path, f))]
@@ -84,9 +87,9 @@ if __name__ == "__main__":
 
     if not PostRT.Initialize(sys.argv):
         PostRT.PrintDescription()
-        quit(-1)
+        sys.exit(-1)
 
     if not PostRT.Run():
-        quit(-1)
+        sys.exit(-1)
 
-    quit(0)
+    sys.exit(0)

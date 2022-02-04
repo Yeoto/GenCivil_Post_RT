@@ -12,9 +12,9 @@
             "console": "integratedTerminal",
             "args": 
             [
-                "C:\\MIDAS\\Source\\genw_master\\bin\\CivilRelease\\x64\\CVLw.exe",
+                "-",
                 "C:\\MIDAS\\Source\\CivilNS\\bin\\CivilDebug\\x64\\CVLw.exe",
-                "C:\\MIDAS\\MODEL\\Post RT\\MODEL",
+                "C:\\MIDAS\\MODEL\\RT_Model",
                 "C:\\MIDAS\\MODEL\\Post RT",
                 "C:\\MIDAS\\MODEL\\Post RT\\junit_Report.xml",
                 "1.0e-4"
