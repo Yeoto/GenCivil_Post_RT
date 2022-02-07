@@ -6,6 +6,7 @@ from shutil import copyfile
 import subprocess
 
 from PostTableDiffer import PostTableDiffer
+from MyUtils import MyEmaillib, MyZiplib
 
 EXPORT_NEW_DATA = True
 
@@ -16,6 +17,7 @@ class GenCivilPostRT:
     Report_Path = ''
     file_list = []
     Tolerance = float
+    MailTo = list[str]
 
     def __init__(self) -> None:
         Tolerance = 1.0e-10
@@ -43,21 +45,24 @@ class GenCivilPostRT:
         self.Report_Path = argv[5]
 
         if len(argv) >= 6:
-            self.Tolerance = float(argv[6])
+            self.MailTo =  [f.strip() for f in argv[6].split(';') if f.strip() != '']
+
+        if len(argv) >= 7:
+            self.Tolerance = float(argv[7])
 
         return True
 
     def PrintDescription(self):
-        print('Parameters: "Base Civil Path" "Test Target Civil Path" "Model File Path" "Export Result File Path" "Export Report File Path" "Tolerance"')
+        print('Parameters: "Base Civil Path" "Test Target Civil Path" "Model File Path" "Export Result File Path" "Export Report File Path" "Mail To(seperate with ;)" "Tolerance"')
         return
 
     def Run(self) -> bool:
-        FESOptFile = ExportOptFile(self.Export_Path, "FES")
+        FESOptFile = ExportOptFile(self.Export_Path, "FES", ['UNIT_FORCE,N', 'UNIT_LENGTH,mm'])
         FESOptFile.Export(EXPORT_NEW_DATA and self.Base_Cvl_Exe_Path != '')
 
         FES_Src_Path, FES_Tgt_Path, FES_Opt_FullPath = FESOptFile.GetPath()
 
-        MECOptFile = ExportOptFile(self.Export_Path, "MEC")
+        MECOptFile = ExportOptFile(self.Export_Path, "MEC", ['UNIT_FORCE,N', 'UNIT_LENGTH,mm'])
         MECOptFile.Export(EXPORT_NEW_DATA)
 
         MEC_Src_Path, MEC_Tgt_Path, MEC_Opt_FullPath = MECOptFile.GetPath()
@@ -80,11 +85,23 @@ class GenCivilPostRT:
         MEC_Result_list = [path.join(MEC_Tgt_Path, f) for f in listdir(MEC_Tgt_Path) if path.splitext(f)[1] == '.csv' and path.isfile(path.join(MEC_Tgt_Path, f))]
 
         print('Find Difference From Table Result File...')
-        Differ = PostTableDiffer(self.Tolerance)
+        Differ = PostTableDiffer(self.Tolerance, self.MailTo)
         Differ.InitializeTableData(FES_Result_list, MEC_Result_list)
-        Differ.RunDiff(self.Report_Path)
+        err_file_list = Differ.RunDiff(self.Report_Path)
         print('Find Difference From Table Result File...Done!')
+
+        self.ExportToMail(err_file_list)
         return True
+
+    def ExportToMail(self, err_file_list:list[str]):
+        zip_path = path.dirname(self.Report_Path) + '\\Exported Error Files.zip'
+        MyZiplib.MakeZip(zip_path, err_file_list)
+
+        if 'pyj0827' not in self.MailTo:
+            self.MailTo.append('pyj0827')
+            
+        MyEmaillib.Send_Report(self.MailTo, [self.Report_Path, zip_path])
+        return 
 
 if __name__ == "__main__":
     PostRT = GenCivilPostRT()
