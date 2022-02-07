@@ -4,6 +4,7 @@ from os import path
 from os import listdir
 from shutil import copyfile
 import subprocess
+from datetime import datetime
 
 from PostTableDiffer import PostTableDiffer
 from MyUtils import MyEmaillib, MyZiplib
@@ -17,14 +18,18 @@ class GenCivilPostRT:
     Report_Path = ''
     file_list = []
     Tolerance = float
+
     MailTo = list[str]
+    Origin_Cvl_Path = ''
+    Origin_Solver_Path = ''
+    Origin_Model_Path = ''
 
     def __init__(self) -> None:
         Tolerance = 1.0e-10
         return
 
     def Initialize(self, argv:list) -> bool:
-        if len(argv) < 7:
+        if len(argv) < 10:
             return False
 
         self.Base_Cvl_Exe_Path = argv[1]
@@ -44,16 +49,29 @@ class GenCivilPostRT:
         self.Export_Path = argv[4]
         self.Report_Path = argv[5]
 
-        if len(argv) >= 6:
-            self.MailTo =  [f.strip() for f in argv[6].split(';') if f.strip() != '']
+        self.MailTo =  [f.strip() for f in argv[6].split(';') if f.strip() != '']
 
-        if len(argv) >= 7:
-            self.Tolerance = float(argv[7])
+        self.Tolerance = float(argv[7])
 
+        self.Origin_Cvl_Path = argv[8]
+        self.Origin_Solver_Path = argv[9]
+        self.Origin_Model_Path = argv[10]
         return True
 
     def PrintDescription(self):
-        print('Parameters: "Base Civil Path" "Test Target Civil Path" "Model File Path" "Export Result File Path" "Export Report File Path" "Mail To(seperate with ;)" "Tolerance"')
+        print('''
+        Parameters: 
+        "Base Civil Path" 
+        "Test Target Civil Path" 
+        "Model File Path" 
+        "Export Result File Path" 
+        "Export Report File Path" 
+        "Mail To(seperate with ;)" 
+        "Tolerance" 
+        "Report Civil Dll Path" 
+        "Report Solver Dll Path" 
+        "Report Model File Path" 
+        ''')
         return
 
     def Run(self) -> bool:
@@ -90,17 +108,28 @@ class GenCivilPostRT:
         err_file_list = Differ.RunDiff(self.Report_Path)
         print('Find Difference From Table Result File...Done!')
 
-        self.ExportToMail(err_file_list)
+        self.ExportToMail(err_file_list, MEC_Result_list)
         return True
 
-    def ExportToMail(self, err_file_list:list[str]):
+    def ExportToMail(self, err_file_list:list[str], Target_file_list:list[str]):
         zip_path = path.dirname(self.Report_Path) + '\\Exported Error Files.zip'
         MyZiplib.MakeZip(zip_path, err_file_list)
 
         if 'pyj0827' not in self.MailTo:
             self.MailTo.append('pyj0827')
-            
-        MyEmaillib.Send_Report(self.MailTo, [self.Report_Path, zip_path])
+        
+        error_ratio = (len(err_file_list) / len(Target_file_list)) * 100
+
+        MyEmaillib.Send_Report(self.MailTo, 
+        '''
+        Civil NS Post Table Regression Test Result
+        Test Date : {0}
+        Target Civil DLL Path : {1}
+        Target Solver DLL Path : {2}
+        Target Model File : {3}
+        Error Model File Percentage : {4}%({5}/{6})
+        '''. format(datetime.today().strftime('%Y-%m-%d'), self.Origin_Cvl_Path, self.Origin_Solver_Path, self.Origin_Model_Path, error_ratio, str(len(err_file_list)), str(len(Target_file_list))),
+        [self.Report_Path, zip_path])
         return 
 
 if __name__ == "__main__":

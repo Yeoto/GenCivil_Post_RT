@@ -16,13 +16,14 @@ class MyZiplib:
             file_zip.close()
 
 class MyEmaillib:
-    def Send_Report(Mail_to:list[str], attachment:list[str]=[]) -> None:
+    def Send_Report(Mail_to:list[str], message:str, attachment:list[str]=[]) -> None:
         msg = EmailMessage()
         msg['Subject'] = 'Civil NS Post Table Regression Test Result !!'
         msg['From'] = 'pyj0827@midasit.com'
         msg['To'] = ', '.join([f+"@midasit.com" for f in Mail_to])
+
         msg.add_header('Content-Type', 'text')
-        msg.set_payload('Asdf Asdf Asdf')
+        msg.set_payload(message)
 
         for file in attachment:
             with open(file, 'rb') as f:
