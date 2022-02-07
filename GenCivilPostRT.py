@@ -41,8 +41,8 @@ class GenCivilPostRT:
         if not path.isfile(self.Base_Cvl_Exe_Path):
             self.Base_Cvl_Exe_Path = ''
 
-        Model_From_Path = argv[3]
-        self.file_list = [path.join(Model_From_Path, f) for f in listdir(Model_From_Path) if path.splitext(f)[1] == '.mcb' and path.isfile(path.join(Model_From_Path, f))]
+        self.Origin_Model_Path = argv[3]
+        self.file_list = [path.join(self.Origin_Model_Path, f) for f in listdir(self.Origin_Model_Path) if path.splitext(f)[1] == '.mcb' and path.isfile(path.join(self.Origin_Model_Path, f))]
         if len(self.file_list) == 0:
             return False
 
@@ -55,7 +55,6 @@ class GenCivilPostRT:
 
         self.Origin_Cvl_Path = argv[8]
         self.Origin_Solver_Path = argv[9]
-        self.Origin_Model_Path = argv[10]
         return True
 
     def PrintDescription(self):
@@ -70,7 +69,6 @@ class GenCivilPostRT:
         "Tolerance" 
         "Report Civil Dll Path" 
         "Report Solver Dll Path" 
-        "Report Model File Path" 
         ''')
         return
 

@@ -35,7 +35,8 @@ class MyEmaillib:
             pass
 
         smtp.login('pyj0827@midasit.com', 'qkrdbwls00@@')
-        smtp.sendmail(msg['From'], [msg['To']], msg.as_string())
+        smtp.send_message(msg)
+        #smtp.sendmail(msg['From'], [msg['To']], msg.as_string())
         smtp.quit()
 
 if __name__ == "__main__":
