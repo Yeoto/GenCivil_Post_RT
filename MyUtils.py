@@ -67,7 +67,7 @@ class MyXLlib:
         self.__worksheet = self.__workbook.create_sheet(TableName)
         return
 
-    def WriteLine(self, base_datas: list[(str, str)], tgt_datas: list[(str, str)] = []) -> None:
+    def WriteLine(self, base_datas: list[(str, str)], tgt_datas: list[(str, str)] = [], col_offset:int = 1) -> None:
         if len(base_datas) == 0 and len(tgt_datas) == 0:
             self.__line += 1
             return
@@ -77,13 +77,13 @@ class MyXLlib:
             tgt_datas = []
 
         if len(tgt_datas) > 0:
-            self.__worksheet.cell(row=self.__line, column=1).value = "FES"
+            if col_offset > 0:
+                self.__worksheet.cell(row=self.__line, column=col_offset).value = "FES"
             self.__SheetModified = True
-
 
         for i in range(len(base_datas)):
             cell_tuple = base_datas[i]
-            cell = self.__worksheet.cell(row=self.__line, column=i + 2)
+            cell = self.__worksheet.cell(row=self.__line, column=i + col_offset + 1)
             cell.value = cell_tuple[0]
 
             if cell_tuple[1] == 'Failure':
@@ -95,11 +95,12 @@ class MyXLlib:
         self.__line += 1
 
         if len(tgt_datas) > 0:
-            self.__worksheet.cell(row=self.__line, column=1).value = "MEC"
+            if col_offset > 0:
+                self.__worksheet.cell(row=self.__line, column=col_offset).value = "MEC"
 
             for i in range(len(tgt_datas)):
                 cell_tuple = tgt_datas[i]
-                cell = self.__worksheet.cell(row=self.__line, column=i + 2)
+                cell = self.__worksheet.cell(row=self.__line, column=i + col_offset + 1)
                 cell.value = cell_tuple[0]
 
                 if cell_tuple[1] == 'Failure':
@@ -108,7 +109,8 @@ class MyXLlib:
                 elif cell_tuple[1] == 'Error':
                     # 타입 오류 = 노란색
                     cell.fill = PatternFill(start_color="FFEB9C", fill_type='solid')
-        self.__line += 1
+
+            self.__line += 1
 
         return
 
@@ -118,7 +120,7 @@ class MyXLlib:
 
         if self.__worksheet != None and self.__SheetModified == False:
             self.__workbook.remove(self.__worksheet)
-            
+
         if self.__workbook['Sheet'] != None:
             self.__workbook.remove(self.__workbook['Sheet'])
 

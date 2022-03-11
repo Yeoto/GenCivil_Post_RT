@@ -12,7 +12,7 @@
             "console": "integratedTerminal",
             "args": 
             [
-                "-",
+                "C:\\MIDAS\\Source\\genw_910\\bin\\CivilRelease\\x64\\CVLw.exe",
                 "C:\\MIDAS\\Source\\CivilNS\\bin\\CivilDebug\\x64\\CVLw.exe",
                 "C:\\MIDAS\\MODEL\\RT_Model",
                 "C:\\MIDAS\\MODEL\\Post RT",

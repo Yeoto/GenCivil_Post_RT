@@ -9,7 +9,7 @@ from datetime import datetime
 from PostTableDiffer import PostTableDiffer
 from MyUtils import MyEmaillib, MyZiplib
 
-EXPORT_NEW_DATA = True
+EXPORT_NEW_DATA = False
 
 class GenCivilPostRT:
     Base_Cvl_Exe_Path = ''
@@ -78,12 +78,12 @@ class GenCivilPostRT:
         return
 
     def Run(self) -> bool:
-        FESOptFile = ExportOptFile(self.Export_Path, "FES")
+        FESOptFile = ExportOptFile(self.Export_Path, "FES", ['UNIT_FORCE,N', 'UNIT_LENGTH,mm'])
         FESOptFile.Export(EXPORT_NEW_DATA and self.Base_Cvl_Exe_Path != '')
 
         FES_Src_Path, FES_Tgt_Path, FES_Opt_FullPath = FESOptFile.GetPath()
 
-        MECOptFile = ExportOptFile(self.Export_Path, "MEC")
+        MECOptFile = ExportOptFile(self.Export_Path, "MEC", ['UNIT_FORCE,N', 'UNIT_LENGTH,mm'])
         MECOptFile.Export(EXPORT_NEW_DATA)
 
         MEC_Src_Path, MEC_Tgt_Path, MEC_Opt_FullPath = MECOptFile.GetPath()

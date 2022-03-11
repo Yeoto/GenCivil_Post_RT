@@ -137,7 +137,8 @@ class PostTableDiffer:
                     ErrorRowList.append((TypeErrorSet, ValueErrorSet))
                 
                 if sum([len(f[0]) + len(f[1]) for f in ErrorRowList]) > 0:
-                    diff_sheet.WriteLine([(File_Name + ': ' + LineSpan_Tgt[0], '')])
+                    diff_sheet.WriteLine([(File_Name + ': ' + LineSpan_Tgt[0], '')], col_offset=0)
+                    diff_sheet.WriteLine([(f.strip(),'') for f in tgt_lines[0].strip().split(',')])
 
                 ValueErrorCnt = 0
                 TypeErrorCnt = 0
@@ -186,13 +187,6 @@ class PostTableDiffer:
                     ThrowError(tc, 'Failure', '값 오류 {0}개'.format(ValueErrorCnt), err_file_list, Tgt_File_Path)
                 if TypeErrorCnt > 0:
                     ThrowError(tc, 'Error', '타입 오류 {0}개'.format(TypeErrorCnt), err_file_list, Tgt_File_Path)
-                #
-                #if len(ErrorRowList) > 0:
-                #    f_error_Row.write(File_Name + ': ' + LineSpan_Tgt[0] + '\n')
-                #    f_error_Row.write(tgt_lines[0])
-                #    for row in ErrorRowList:
-                #        f_error_Row.write(tgt_lines[row])
-                #    f_error_Row.write('\r\n\r\n')
                     
             ts = TestSuite('Post Table RT : ' + File_Name, tc_list)
             ts_list.append(ts)
