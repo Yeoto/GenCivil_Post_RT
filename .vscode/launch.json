@@ -16,9 +16,10 @@
                 "C:\\MIDAS\\Source\\CivilNS\\bin\\CivilDebug\\x64\\CVLw.exe",
                 "C:\\MIDAS\\MODEL\\RT_Model",
                 "C:\\MIDAS\\MODEL\\Post RT",
-                "C:\\MIDAS\\MODEL\\Post RT\\junit_Report.xml",
-                ";",
+                "C:\\MIDAS\\MODEL\\Post RT\\junit_Report",
+                ",",
                 "1.0e-6",
+                "0.1",
                 "Report Civil Dll Path/asdasd",
                 "Report Solver Dll Path/qweqwe", 
             ]

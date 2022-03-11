@@ -9,7 +9,7 @@ from datetime import datetime
 from PostTableDiffer import PostTableDiffer
 from MyUtils import MyEmaillib, MyZiplib
 
-EXPORT_NEW_DATA = True
+EXPORT_NEW_DATA = False
 
 class GenCivilPostRT:
     Base_Cvl_Exe_Path = ''
@@ -17,7 +17,8 @@ class GenCivilPostRT:
     Export_Path = ''
     Report_Path = ''
     file_list = []
-    Tolerance = float
+    Val_Tolerance = float
+    Per_Tolerance = float
 
     MailTo = list[str]
     Origin_Cvl_Path = ''
@@ -25,7 +26,8 @@ class GenCivilPostRT:
     Origin_Model_Path = ''
 
     def __init__(self) -> None:
-        Tolerance = 1.0e-10
+        Val_Tolerance = 1.0e-6
+        Per_Tolerance = 0.1
         return
 
     def Initialize(self, argv:list) -> bool:
@@ -47,14 +49,16 @@ class GenCivilPostRT:
             return False
 
         self.Export_Path = argv[4]
-        self.Report_Path = argv[5]
+        self.Report_Path = argv[5] + ".xml"
+        self.Error_Row_Path = argv[5] + ".xlsx"
 
-        self.MailTo =  [f.strip() for f in argv[6].split(';') if f.strip() != '']
+        self.MailTo =  [f.strip() for f in argv[6].split(',') if f.strip() != '']
 
-        self.Tolerance = float(argv[7])
+        self.Val_Tolerance = float(argv[7])
+        self.Per_Tolerance = float(argv[8])
 
-        self.Origin_Cvl_Path = argv[8]
-        self.Origin_Solver_Path = argv[9]
+        self.Origin_Cvl_Path = argv[9]
+        self.Origin_Solver_Path = argv[10]
         return True
 
     def PrintDescription(self):
@@ -66,19 +70,20 @@ class GenCivilPostRT:
         "Export Result File Path" 
         "Export Report File Path" 
         "Mail To(seperate with ;)" 
-        "Tolerance" 
+        "Value Tolerance (1.0e-6)" 
+        "Percentage Tolerance (0.1)" 
         "Report Civil Dll Path" 
         "Report Solver Dll Path" 
         ''')
         return
 
     def Run(self) -> bool:
-        FESOptFile = ExportOptFile(self.Export_Path, "FES", ['UNIT_FORCE,N', 'UNIT_LENGTH,mm'])
+        FESOptFile = ExportOptFile(self.Export_Path, "FES")
         FESOptFile.Export(EXPORT_NEW_DATA and self.Base_Cvl_Exe_Path != '')
 
         FES_Src_Path, FES_Tgt_Path, FES_Opt_FullPath = FESOptFile.GetPath()
 
-        MECOptFile = ExportOptFile(self.Export_Path, "MEC", ['UNIT_FORCE,N', 'UNIT_LENGTH,mm'])
+        MECOptFile = ExportOptFile(self.Export_Path, "MEC")
         MECOptFile.Export(EXPORT_NEW_DATA)
 
         MEC_Src_Path, MEC_Tgt_Path, MEC_Opt_FullPath = MECOptFile.GetPath()
@@ -101,9 +106,9 @@ class GenCivilPostRT:
         MEC_Result_list = [path.join(MEC_Tgt_Path, f) for f in listdir(MEC_Tgt_Path) if path.splitext(f)[1] == '.csv' and path.isfile(path.join(MEC_Tgt_Path, f))]
 
         print('Find Difference From Table Result File...')
-        Differ = PostTableDiffer(self.Tolerance, self.MailTo)
+        Differ = PostTableDiffer(self.Val_Tolerance, self.Per_Tolerance)
         Differ.InitializeTableData(FES_Result_list, MEC_Result_list)
-        err_file_list = Differ.RunDiff(self.Report_Path)
+        err_file_list = Differ.RunDiff(self.Report_Path, self.Error_Row_Path)
         print('Find Difference From Table Result File...Done!')
 
         self.ExportToMail(err_file_list, MEC_Result_list)
@@ -115,7 +120,9 @@ class GenCivilPostRT:
 
         if 'pyj0827' not in self.MailTo:
             self.MailTo.append('pyj0827')
-        
+        #if 'Joyang' not in self.MailTo:
+        #    self.MailTo.append('Joyang')
+
         error_ratio = (len(err_file_list) / len(Target_file_list)) * 100
 
         MyEmaillib.Send_Report(self.MailTo, 
@@ -127,7 +134,7 @@ class GenCivilPostRT:
         Target Model File : {3}
         Error Model File Percentage : {4}%({5}/{6})
         '''. format(datetime.today().strftime('%Y-%m-%d'), self.Origin_Cvl_Path, self.Origin_Solver_Path, self.Origin_Model_Path, error_ratio, str(len(err_file_list)), str(len(Target_file_list))),
-        [self.Report_Path, zip_path])
+        [self.Report_Path, self.Error_Row_Path, zip_path])
         return 
 
 if __name__ == "__main__":

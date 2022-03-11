@@ -1,10 +1,9 @@
 #-*- coding: utf-8 -*-
-import email
 from math import fabs
-from os import path
+from os import path, remove
 import re
 from junit_xml_custom import TestSuite, TestCase
-from MyUtils import MyEmaillib, MyZiplib
+from MyUtils import MyXLlib
 
 class DiffException(Exception):
     Error_Code = str
@@ -21,12 +20,14 @@ class DiffException(Exception):
         return self.Error_Code
 
 class PostTableDiffer:
-    Tolerance = float
+    Val_Tolerance = float
+    Per_Tolerance = float
     Base_Table = {}
     Target_Table = {}
 
-    def __init__(self, Tol:float, emailto:str) -> None:
-        self.Tolerance = Tol
+    def __init__(self, Val_Tol:float, Per_Tol:float) -> None:
+        self.Val_Tolerance = Val_Tol
+        self.Per_Tolerance = Per_Tol
         return 
 
     def InitializeTableData(self, base_file_list, Tgt_file_list):
@@ -38,9 +39,11 @@ class PostTableDiffer:
             v = float(num)
             return v
         except ValueError:
+            if type(num) == type(''):
+                return num.strip()
             return num
 
-    def RunDiff(self, report_path: str) -> list[str]:
+    def RunDiff(self, report_path: str, error_row_path: str) -> list[str]:
         def ThrowError(tc:TestCase, err_code:str, msg:str, err_file_list:list, file_path:str):
             if err_code == 'Failure':
                 tc.add_failure_info(msg)
@@ -49,6 +52,8 @@ class PostTableDiffer:
 
             if file_path not in err_file_list:
                 err_file_list.append(file_path)
+        
+        diff_sheet = MyXLlib()
 
         ts_list = []
         err_file_list = []
@@ -65,6 +70,8 @@ class PostTableDiffer:
             Base_File_Path = LinePosSpan_Base[0]
             Tgt_File_Path = LinePosSpan_Tgt[0]
 
+            diff_sheet.CreateSheet(File_Name)
+
             tc_list = []
             for TableID, LineSpan_Tgt in LinePosSpan_Tgt[1].items():
                 if TableID not in LinePosSpan_Base[1]:
@@ -76,7 +83,7 @@ class PostTableDiffer:
                 LineSpan_Base = LinePosSpan_Base[1][TableID]
 
                 if (LineSpan_Base[1][1] - LineSpan_Base[1][0]) != (LineSpan_Tgt[1][1] - LineSpan_Tgt[1][0]):
-                    ThrowError(tc, 'Error', '테이블 레코드(Row)의 갯수가 일치하지 않습니다', err_file_list, Tgt_File_Path)
+                    ThrowError(tc, 'Error', 'Row Count Diff.', err_file_list, Tgt_File_Path)
                     continue
 
                 with open(Base_File_Path, 'r') as f:
@@ -85,7 +92,9 @@ class PostTableDiffer:
                 with open(Tgt_File_Path, 'r') as f:
                     tgt_lines = f.readlines()[LineSpan_Tgt[1][0]:LineSpan_Tgt[1][1]]
 
-                for i in range(len(tgt_lines)):
+                ErrorRowList = list(tuple())
+
+                for i in range(1, len(tgt_lines)):
                     base_line = base_lines[i]
                     tgt_line = tgt_lines[i]
 
@@ -93,8 +102,11 @@ class PostTableDiffer:
                     tgt_datas = tgt_line.split(',')
 
                     if len(base_datas) != len(tgt_datas):
-                        ThrowError(tc, 'Error', '테이블 레코드(Column)의 갯수가 일치하지 않습니다', err_file_list, Tgt_File_Path)
+                        ThrowError(tc, 'Error', 'Column Count Diff.', err_file_list, Tgt_File_Path)
                         break
+
+                    TypeErrorSet = set()
+                    ValueErrorSet = set()
 
                     for j in range(len(tgt_datas)):
                         base_data = base_datas[j]
@@ -104,25 +116,92 @@ class PostTableDiffer:
                         real_value_tgt = self.GetValue(tgt_data)
 
                         if type(real_value_base) != type(real_value_tgt):
-                            ThrowError(tc, 'Error', '테이블 데이터의 타입이 일치하지 않습니다. 위치 : Col({0}) Row({1})'.format(j, i), err_file_list, Tgt_File_Path)
+                            #ThrowError(tc, 'Error', 'Type Diff. Pos : Col({0}) Row({1})'.format(j, i), err_file_list, Tgt_File_Path)
+                            TypeErrorSet.add(j)
                             continue
 
                         IsSame = False
                         if type(real_value_tgt) == type(''):
                             IsSame = real_value_tgt == real_value_base
                         elif type(real_value_tgt) == type(0.0):
-                            IsSame = fabs(real_value_tgt - real_value_base) < self.Tolerance
+                            if real_value_tgt == 0.0 or real_value_base == 0.0:
+                                IsSame = fabs(real_value_tgt - real_value_base) < self.Val_Tolerance
+                            else:
+                                IsSame = fabs((real_value_tgt - real_value_base) / real_value_tgt) < ( self.Per_Tolerance / 100 )
 
                         if IsSame == False:
-                            ThrowError(tc, 'Failure', '테이블 데이터의 값이 일치하지 않습니다. 위치 : Col({0}) Row({1})'.format(j, i), err_file_list, Tgt_File_Path)
+                            #ThrowError(tc, 'Failure', 'Value DIff. Pos : Col({0}) Row({1}). Value: Base "{2}" vs Tgt "{3}"'.format(j, i, real_value_base, real_value_tgt), err_file_list, Tgt_File_Path)
+                            ValueErrorSet.add(j)
                             continue
 
+                    ErrorRowList.append((TypeErrorSet, ValueErrorSet))
+                
+                if sum([len(f[0]) + len(f[1]) for f in ErrorRowList]) > 0:
+                    diff_sheet.WriteLine([(File_Name + ': ' + LineSpan_Tgt[0], '')])
 
+                ValueErrorCnt = 0
+                TypeErrorCnt = 0
+                for j in range(len(ErrorRowList)):
+                    TypeErrorSet = ErrorRowList[j][0]
+                    ValueErrorSet = ErrorRowList[j][1]
+
+                    ValueErrorCnt += len(ValueErrorSet)
+                    TypeErrorCnt += len(TypeErrorSet)
+
+                    if len(ValueErrorSet) > 0 or len(TypeErrorSet) > 0:
+                        base_datas = list(tuple())
+                        tgt_datas = list(tuple())
+
+                        data_idx = 0
+                        for base_data in base_lines[j + 1].split(','):
+                            base_data = base_data.strip()
+                            if data_idx in ValueErrorSet:
+                                base_datas.append((base_data, 'Failure'))
+                            elif data_idx in TypeErrorSet:
+                                base_datas.append((base_data, 'Error'))
+                            else:
+                                base_datas.append((base_data, ''))
+
+                            data_idx += 1
+
+                        data_idx = 0
+                        for tgt_data in tgt_lines[j + 1].split(','):
+                            tgt_data = tgt_data.strip()
+                            if data_idx in ValueErrorSet:
+                                tgt_datas.append((tgt_data, 'Failure'))
+                            elif data_idx in TypeErrorSet:
+                                tgt_datas.append((tgt_data, 'Error'))
+                            else:
+                                tgt_datas.append((tgt_data, ''))
+
+                            data_idx += 1
+
+                        diff_sheet.WriteLine(base_datas, tgt_datas)
+                        diff_sheet.WriteLine([])
+
+                diff_sheet.WriteLine([])
+                diff_sheet.WriteLine([])
+
+                if ValueErrorCnt > 0:
+                    ThrowError(tc, 'Failure', '값 오류 {0}개'.format(ValueErrorCnt), err_file_list, Tgt_File_Path)
+                if TypeErrorCnt > 0:
+                    ThrowError(tc, 'Error', '타입 오류 {0}개'.format(TypeErrorCnt), err_file_list, Tgt_File_Path)
+                #
+                #if len(ErrorRowList) > 0:
+                #    f_error_Row.write(File_Name + ': ' + LineSpan_Tgt[0] + '\n')
+                #    f_error_Row.write(tgt_lines[0])
+                #    for row in ErrorRowList:
+                #        f_error_Row.write(tgt_lines[row])
+                #    f_error_Row.write('\r\n\r\n')
+                    
             ts = TestSuite('Post Table RT : ' + File_Name, tc_list)
             ts_list.append(ts)
 
         with open(report_path, 'w', encoding='utf-8') as f:
             TestSuite.to_file(f, ts_list, prettyprint=True, encoding='utf-8')
+
+        diff_sheet.save(error_row_path)
+
         return err_file_list
 
     def Parse_TableData(self, file_list):
