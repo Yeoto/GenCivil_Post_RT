@@ -9,7 +9,7 @@ from datetime import datetime
 from PostTableDiffer import PostTableDiffer
 from MyUtils import MyEmaillib, MyZiplib
 
-EXPORT_NEW_DATA = False
+EXPORT_NEW_DATA = True
 
 class GenCivilPostRT:
     Base_Cvl_Exe_Path = ''
