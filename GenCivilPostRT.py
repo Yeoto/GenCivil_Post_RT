@@ -120,8 +120,10 @@ class GenCivilPostRT:
 
         if 'pyj0827' not in self.MailTo:
             self.MailTo.append('pyj0827')
-        #if 'Joyang' not in self.MailTo:
-        #    self.MailTo.append('Joyang')
+        if 'Joyang' not in self.MailTo:
+            self.MailTo.append('Joyang')
+        if 'khseo' not in self.MailTo: 
+            self.MailTo.append('khseo')
 
         error_ratio = (len(err_file_list) / len(Target_file_list)) * 100
 
