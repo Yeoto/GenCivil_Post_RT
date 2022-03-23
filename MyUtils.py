@@ -5,6 +5,7 @@ from os import remove
 from email.message import EmailMessage
 from sys import argv
 from turtle import bgcolor
+from xmlrpc.client import Boolean
 import zipfile
 import openpyxl
 from openpyxl.styles import PatternFill
@@ -51,20 +52,23 @@ class MyEmaillib:
 class MyXLlib:
     __workbook = openpyxl.Workbook
     __line = 1
-    __worksheet = object
+    __worksheet = None
     __SheetModified = bool
 
     def __init__(self) -> None:
         self.__workbook = openpyxl.Workbook()
         self.__line = 1
+        self.__SheetModified = False
         return
 
     def CreateSheet(self, TableName: str) -> None:
         if self.__worksheet != None and self.__SheetModified == False:
             self.__workbook.remove(self.__worksheet)
-        self.__SheetModified = False
-        self.__line = 1
+
         self.__worksheet = self.__workbook.create_sheet(TableName)
+        self.__line = 1
+
+        self.__SheetModified = False
         return
 
     def WriteLine(self, base_datas: list[(str, str)], tgt_datas: list[(str, str)] = [], col_offset:int = 1) -> None:
