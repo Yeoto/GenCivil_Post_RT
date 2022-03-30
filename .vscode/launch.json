@@ -14,7 +14,8 @@
             [
                 "C:\\MIDAS\\Source\\genw_910\\bin\\CivilRelease\\x64\\CVLw.exe",
                 "C:\\MIDAS\\Source\\CivilNS\\bin\\CivilRelease\\x64\\CVLw.exe",
-                "C:\\MIDAS\\MODEL\\RT_Model",
+                "C:\\MIDAS\\MODEL\\RT_Model\\FES",
+                "C:\\MIDAS\\MODEL\\RT_Model\\MEC",
                 "C:\\MIDAS\\MODEL\\POST RT",
                 "C:\\MIDAS\\MODEL\\Post RT\\junit_Report",
                 ",",

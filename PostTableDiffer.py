@@ -59,7 +59,7 @@ class PostTableDiffer:
         err_file_list = []
         list_table_keys = list(self.Target_Table.keys())
         for File_Name in list_table_keys:
-            print('{0}/{1} : {2}'.format(list_table_keys.index(File_Name), len(list_table_keys), File_Name))
+            print('{0}/{1} : {2}'.format(list_table_keys.index(File_Name) + 1, len(list_table_keys), File_Name))
 
             if File_Name not in self.Base_Table:
                 continue
