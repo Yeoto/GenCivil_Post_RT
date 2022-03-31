@@ -115,9 +115,9 @@ class GenCivilPostRT:
             ''')
         
         #Clean Up
-        if isdir(self.Export_Path):
-            shutil.rmtree(self.Export_Path)
-            os.makedirs(self.Export_Path)
+        #if EXPORT_NEW_DATA == True and isdir(self.Export_Path):
+        #    shutil.rmtree(self.Export_Path)
+        #    os.makedirs(self.Export_Path)
 
         #Export FES Result
         FES_Result_list = {}
@@ -183,7 +183,10 @@ class GenCivilPostRT:
                 err_file_list.extend(cur_error_file_list)
 
         Differ.SaveJunit(self.Report_Path + ".xml")
-        self.ExportToMail(err_file_list, list(MEC_Result_list.values()), Error_Row_Paths)
+        results = []
+        for files_list in list(MEC_Result_list.values()):
+            results.extend(files_list)
+        self.ExportToMail(err_file_list, results, Error_Row_Paths)
         return True
 
     def ExportToMail(self, err_file_list:list[str], Target_file_list:list[str], Error_Row_Paths:list[str]):
