@@ -17,12 +17,13 @@
                 "C:\\MIDAS\\MODEL\\RT_Model\\FES",
                 "C:\\MIDAS\\MODEL\\RT_Model\\MEC",
                 "C:\\MIDAS\\MODEL\\POST RT",
-                "C:\\MIDAS\\MODEL\\Post RT\\junit_Report",
+                "Report",
                 ",",
                 "1.0e-6",
                 "0.1",
                 "Report Civil Dll Path/asdasd",
                 "Report Solver Dll Path/qweqwe", 
+                "C:\\MIDAS\\MODEL\\RESULT"
             ]
         }
     ]

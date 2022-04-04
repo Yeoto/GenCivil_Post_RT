@@ -1,16 +1,11 @@
-from email.mime import base
-from msilib import Table
 import smtplib
 from os.path import basename, splitext, isdir, isfile
 from os import remove
 from email.message import EmailMessage
 from sys import argv
-from turtle import bgcolor
-from xmlrpc.client import Boolean
 import zipfile
 import openpyxl
 from openpyxl.styles import PatternFill
-from pyparsing import col
 
 class MyZiplib:
     def MakeZip(export_path:str, zip_file_list:list[str]) -> None:

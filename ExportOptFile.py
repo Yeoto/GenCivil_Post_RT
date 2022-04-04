@@ -20,7 +20,11 @@ class ExportOptFile:
         self.Analysis_From = Analysis_From
 
     def GetPKID(self) -> str:
-        license_path = glob.glob("\\\\midasitdev\\100_Dev\\Pub\\Midas Lock Number\\*라이선스.txt")[0]
+        list_license_path = glob.glob("\\\\midasitdev\\100_Dev\\Pub\\Midas Lock Number\\*라이선스.txt")
+        if len(list_license_path) == 0:
+            return ''
+
+        license_path = list_license_path[0]
         f_license = open(license_path, 'r')
 
         for line in f_license.readlines():
@@ -39,7 +43,8 @@ class ExportOptFile:
         f = open(FileFullPath, 'w')
 
         PKID = self.GetPKID()
-        f.write('PKID=' + PKID + '\n')
+        if PKID != '':
+            f.write('PKID=' + PKID + '\n')
 
         for Opt_String in self.list_Opt:
             f.write('OPT='+Opt_String+'\n')
