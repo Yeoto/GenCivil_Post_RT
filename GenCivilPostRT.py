@@ -10,8 +10,8 @@ from datetime import datetime
 from PostTableDiffer import PostTableDiffer
 from MyUtils import MyEmaillib, MyZiplib
 
-IS_DEBUG = False
-EXPORT_NEW_DATA = not IS_DEBUG or True
+IS_DEBUG = True
+EXPORT_NEW_DATA = not IS_DEBUG or False
 
 class GenCivilPostRT:
     Base_Cvl_Exe_Path = ''
@@ -207,6 +207,8 @@ class GenCivilPostRT:
                 self.MailTo.append('Joyang')
             if 'khseo' not in self.MailTo: 
                 self.MailTo.append('khseo')
+            if 'ktpark' not in self.MailTo: 
+                self.MailTo.append('ktpark')
 
         error_ratio = (len(err_file_list) / len(Target_file_list)) * 100
 
