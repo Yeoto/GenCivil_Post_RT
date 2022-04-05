@@ -24,6 +24,7 @@ class PostTableDiffer:
     Per_Tolerance = float
     Base_Table = {}
     Target_Table = {}
+    ts_list = []
 
     def __init__(self, Val_Tol:float, Per_Tol:float) -> None:
         self.Val_Tolerance = Val_Tol
@@ -43,7 +44,7 @@ class PostTableDiffer:
                 return num.strip()
             return num
 
-    def RunDiff(self, report_path: str, error_row_path: str) -> list[str]:
+    def RunDiff(self, error_row_path: str) -> list[str]:
         def ThrowError(tc:TestCase, err_code:str, msg:str, err_file_list:list, file_path:str):
             if err_code == 'Failure':
                 tc.add_failure_info(msg)
@@ -55,11 +56,10 @@ class PostTableDiffer:
         
         diff_sheet = MyXLlib()
 
-        ts_list = []
         err_file_list = []
         list_table_keys = list(self.Target_Table.keys())
         for File_Name in list_table_keys:
-            print('{0}/{1} : {2}'.format(list_table_keys.index(File_Name), len(list_table_keys), File_Name))
+            print('{0}/{1} : {2}'.format(list_table_keys.index(File_Name) + 1, len(list_table_keys), File_Name))
 
             if File_Name not in self.Base_Table:
                 continue
@@ -191,14 +191,15 @@ class PostTableDiffer:
                     ThrowError(tc, 'Error', '타입 오류 {0}개'.format(TypeErrorCnt), err_file_list, Tgt_File_Path)
                     
             ts = TestSuite('Post Table RT : ' + File_Name, tc_list)
-            ts_list.append(ts)
-
-        with open(report_path, 'w', encoding='utf-8') as f:
-            TestSuite.to_file(f, ts_list, prettyprint=True, encoding='utf-8')
+            self.ts_list.append(ts)
 
         diff_sheet.save(error_row_path)
 
         return err_file_list
+
+    def SaveJunit(self, report_path:str):
+        with open(report_path, 'w', encoding='utf-8') as f:
+            TestSuite.to_file(f, self.ts_list, prettyprint=False, encoding='utf-8')
 
     def Parse_TableData(self, file_list):
         LinePosDict = {}

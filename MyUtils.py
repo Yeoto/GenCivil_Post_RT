@@ -1,23 +1,24 @@
-from email.mime import base
 import smtplib
 from os.path import basename, splitext, isdir, isfile
 from os import remove
 from email.message import EmailMessage
 from sys import argv
-from turtle import bgcolor
-from xmlrpc.client import Boolean
 import zipfile
 import openpyxl
 from openpyxl.styles import PatternFill
-from pyparsing import col
 
 class MyZiplib:
     def MakeZip(export_path:str, zip_file_list:list[str]) -> None:
-        if isdir(export_path):
+        if isfile(export_path):
             remove(export_path)
         
+        if len(zip_file_list) == 0:
+            return
+
         with zipfile.ZipFile(export_path, 'w', zipfile.ZIP_DEFLATED) as file_zip:
             for file_path in zip_file_list:
+                if isfile(file_path) == False:
+                    continue
                 file_zip.write(file_path, arcname=basename(file_path))
             file_zip.close()
 
@@ -38,6 +39,9 @@ class MyEmaillib:
         msg.set_payload(message)
 
         for file in attachment:
+            if isfile(file) == False:
+                continue
+
             with open(file, 'rb') as f:
                 msg.add_attachment(f.read(), maintype='application', subtype=splitext(file)[1],filename=basename(file))
 
@@ -54,20 +58,22 @@ class MyXLlib:
     __line = 1
     __worksheet = None
     __SheetModified = bool
+    __TableName = str
 
     def __init__(self) -> None:
         self.__workbook = openpyxl.Workbook()
         self.__line = 1
         self.__SheetModified = False
+        self.__TableName = ""
         return
 
-    def CreateSheet(self, TableName: str) -> None:
+    def CreateSheet(self, TableName: str, Add_Temp: bool = False) -> None:
         if self.__worksheet != None and self.__SheetModified == False:
             self.__workbook.remove(self.__worksheet)
 
         self.__worksheet = self.__workbook.create_sheet(TableName)
+        self.__TableName = TableName
         self.__line = 1
-
         self.__SheetModified = False
         return
 
@@ -84,6 +90,10 @@ class MyXLlib:
             if col_offset > 0:
                 self.__worksheet.cell(row=self.__line, column=col_offset).value = "FES"
             self.__SheetModified = True
+
+        if self.__line + 1 > 1000000:
+            self.__worksheet.cell(row=self.__line, column=1).value = "Sheet Rows are too long. See Next Sheet, Please"
+            self.CreateSheet(self.__TableName)
 
         for i in range(len(base_datas)):
             cell_tuple = base_datas[i]
@@ -128,7 +138,9 @@ class MyXLlib:
         if self.__workbook['Sheet'] != None:
             self.__workbook.remove(self.__workbook['Sheet'])
 
-        self.__workbook.save(path)
+        if len(self.__workbook.sheetnames) > 0:
+            self.__workbook.save(path)
+
         return 
 
 if __name__ == "__main__":

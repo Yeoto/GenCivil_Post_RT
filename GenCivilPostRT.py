@@ -1,37 +1,57 @@
+import shutil
 from ExportOptFile import ExportOptFile
 import sys
+import os
 from os import path
-from os import listdir
-from shutil import copyfile
+from shutil import copyfile, rmtree
 import subprocess
 from datetime import datetime
 
 from PostTableDiffer import PostTableDiffer
 from MyUtils import MyEmaillib, MyZiplib
 
-EXPORT_NEW_DATA = True
+IS_DEBUG = True
+EXPORT_NEW_DATA = not IS_DEBUG or False
 
 class GenCivilPostRT:
     Base_Cvl_Exe_Path = ''
     Test_Cvl_Exe_Path = ''
     Export_Path = ''
     Report_Path = ''
-    file_list = []
+    file_list_FES = {}
+    file_list_MEC = {}
     Val_Tolerance = float
     Per_Tolerance = float
 
     MailTo = list[str]
     Origin_Cvl_Path = ''
     Origin_Solver_Path = ''
-    Origin_Model_Path = ''
+    Export_Share_Path = ''
 
     def __init__(self) -> None:
         Val_Tolerance = 1.0e-6
         Per_Tolerance = 0.1
         return
 
+    def GetFileList(path):
+        files = {}
+        for dirpath, _, filenames in os.walk(path):
+            for f in filenames:
+                folder_name = os.path.relpath(dirpath, path)
+                if folder_name == '.':
+                    folder_name = ""
+                if folder_name not in files:
+                    files[folder_name] = []
+                files[folder_name].append(os.path.join(dirpath, f))
+            
+        return files
+           #if isdir(f):
+           #    self.Recursive_GetFile(f, folder_name + '\\' + basename(f))
+           #if isfile(f):
+           #    self.file_list[folder_name].append(f)
+
     def Initialize(self, argv:list) -> bool:
-        if len(argv) < 10:
+        if len(argv) < 12:
             return False
 
         self.Base_Cvl_Exe_Path = argv[1]
@@ -43,22 +63,27 @@ class GenCivilPostRT:
         if not path.isfile(self.Base_Cvl_Exe_Path):
             self.Base_Cvl_Exe_Path = ''
 
-        self.Origin_Model_Path = argv[3]
-        self.file_list = [path.join(self.Origin_Model_Path, f) for f in listdir(self.Origin_Model_Path) if path.splitext(f)[1] == '.mcb' and path.isfile(path.join(self.Origin_Model_Path, f))]
-        if len(self.file_list) == 0:
+        FES_Model_Path = argv[3]
+        self.file_list_FES = GenCivilPostRT.GetFileList(FES_Model_Path)
+        if len(self.file_list_FES) == 0:
             return False
 
-        self.Export_Path = argv[4]
-        self.Report_Path = argv[5] + ".xml"
-        self.Error_Row_Path = argv[5] + ".xlsx"
+        MEC_Model_Path = argv[4]
+        self.file_list_MEC = GenCivilPostRT.GetFileList(MEC_Model_Path)
+        if len(self.file_list_MEC) == 0:
+            return False
 
-        self.MailTo =  [f.strip() for f in argv[6].split(',') if f.strip() != '']
+        self.Export_Path = argv[5]
+        self.Report_Path = os.path.join(self.Export_Path, argv[6])
 
-        self.Val_Tolerance = float(argv[7])
-        self.Per_Tolerance = float(argv[8])
+        self.MailTo =  [f.strip() for f in argv[7].split(',') if f.strip() != '']
 
-        self.Origin_Cvl_Path = argv[9]
-        self.Origin_Solver_Path = argv[10]
+        self.Val_Tolerance = float(argv[8])
+        self.Per_Tolerance = float(argv[9])
+
+        self.Origin_Cvl_Path = argv[10]
+        self.Origin_Solver_Path = argv[11]
+        self.Export_Share_Path = os.path.join(argv[12], datetime.today().strftime('%Y%m%d_%H%M%S'))
         return True
 
     def PrintDescription(self):
@@ -66,7 +91,8 @@ class GenCivilPostRT:
         Parameters: 
         "Base Civil Path" 
         "Test Target Civil Path" 
-        "Model File Path" 
+        "Base Model File Path" 
+        "Target Model File Path" 
         "Export Result File Path" 
         "Export Report File Path" 
         "Mail To(seperate with ;)" 
@@ -78,52 +104,111 @@ class GenCivilPostRT:
         return
 
     def Run(self) -> bool:
-        FESOptFile = ExportOptFile(self.Export_Path, "FES", ['UNIT_FORCE,N', 'UNIT_LENGTH,mm'])
-        FESOptFile.Export(EXPORT_NEW_DATA and self.Base_Cvl_Exe_Path != '')
+        if IS_DEBUG:
+            print('''
+            DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG 
+            ''')
 
-        FES_Src_Path, FES_Tgt_Path, FES_Opt_FullPath = FESOptFile.GetPath()
+        if EXPORT_NEW_DATA == False:
+            print('''
+            NO EXPORT NEW DATA !!!!!!!!!!!!
+            NO EXPORT NEW DATA !!!!!!!!!!!!
+            NO EXPORT NEW DATA !!!!!!!!!!!!
+            ''')
 
-        MECOptFile = ExportOptFile(self.Export_Path, "MEC", ['UNIT_FORCE,N', 'UNIT_LENGTH,mm'])
-        MECOptFile.Export(EXPORT_NEW_DATA)
+        #Export FES Result
+        FES_Result_list = {}
+        for folder, files in self.file_list_FES.items():
+            FESOptFile = ExportOptFile(self.Export_Path, "FES", ['UNIT_FORCE,N', 'UNIT_LENGTH,mm'])
+            FES_Src_Path, FES_Tgt_Path, FES_Opt_FullPath = FESOptFile.Export(EXPORT_NEW_DATA and self.Base_Cvl_Exe_Path != '', folder)
 
-        MEC_Src_Path, MEC_Tgt_Path, MEC_Opt_FullPath = MECOptFile.GetPath()
+            if os.path.isdir(FES_Src_Path) and EXPORT_NEW_DATA == True:
+                rmtree(FES_Src_Path)
+                os.makedirs(FES_Src_Path)
 
-        if FES_Src_Path != MEC_Src_Path:
-            return False
+            for file in files:
+                file_name = os.path.basename(file)
+                copyfile(file, os.path.join(FES_Src_Path, file_name))
 
-        for file in self.file_list:
-            file_name = path.basename(file)
-            copyfile(file, FES_Src_Path + "\\" + file_name)
-
-        print('Exporting Data...')
-        if EXPORT_NEW_DATA == True:
-            if self.Base_Cvl_Exe_Path != '':
+            print('Exporting FES Result Data... ' + folder)
+            if EXPORT_NEW_DATA == True and self.Base_Cvl_Exe_Path != '':
                 subprocess.run([self.Base_Cvl_Exe_Path, '/PRT', FES_Opt_FullPath])
-            subprocess.run([self.Test_Cvl_Exe_Path, '/PRT', MEC_Opt_FullPath])
-        print('Exporting Data...Done!')
+            print('Exporting FES Result Data... ' + folder + 'Done!')
 
-        FES_Result_list = [path.join(FES_Tgt_Path, f) for f in listdir(FES_Tgt_Path) if path.splitext(f)[1] == '.csv' and path.isfile(path.join(FES_Tgt_Path, f))]
-        MEC_Result_list = [path.join(MEC_Tgt_Path, f) for f in listdir(MEC_Tgt_Path) if path.splitext(f)[1] == '.csv' and path.isfile(path.join(MEC_Tgt_Path, f))]
+            FES_Result_list[folder] = [os.path.join(FES_Tgt_Path, f) for f in os.listdir(FES_Tgt_Path) if path.splitext(f)[1] == '.csv' and path.isfile(path.join(FES_Tgt_Path, f))]
 
-        print('Find Difference From Table Result File...')
+        #Export MEC Result
+        MEC_Result_list = {}
+        for (folder, files) in self.file_list_MEC.items():
+            MECOptFile = ExportOptFile(self.Export_Path, "MEC", ['UNIT_FORCE,N', 'UNIT_LENGTH,mm'])
+            MEC_Src_Path, MEC_Tgt_Path, MEC_Opt_FullPath = MECOptFile.Export(EXPORT_NEW_DATA, folder)
+
+            if os.path.isdir(MEC_Src_Path) and EXPORT_NEW_DATA == True:
+                rmtree(MEC_Src_Path)
+                os.makedirs(MEC_Src_Path)
+
+            for file in files:
+                file_name = path.basename(file)
+                copyfile(file, os.path.join(MEC_Src_Path, file_name))
+
+            print('Exporting MEC Result Data... ' + folder)
+            if EXPORT_NEW_DATA == True:
+                subprocess.run([self.Test_Cvl_Exe_Path, '/PRT', MEC_Opt_FullPath])
+            print('Exporting MEC Result Data... ' + folder + 'Done!')
+
+            MEC_Result_list[folder] = [os.path.join(MEC_Tgt_Path, f) for f in os.listdir(MEC_Tgt_Path) if path.splitext(f)[1] == '.csv' and path.isfile(path.join(MEC_Tgt_Path, f))]
+
+        #Clean Up Results
+        if os.path.isdir(self.Export_Path):
+            for f in os.listdir(self.Export_Path):
+                if os.path.isfile(os.path.join(self.Export_Path, f)):
+                    os.remove(os.path.join(self.Export_Path, f))
+
+        #Diff
         Differ = PostTableDiffer(self.Val_Tolerance, self.Per_Tolerance)
-        Differ.InitializeTableData(FES_Result_list, MEC_Result_list)
-        err_file_list = Differ.RunDiff(self.Report_Path, self.Error_Row_Path)
-        print('Find Difference From Table Result File...Done!')
+        Error_Row_Paths = []
+        err_file_list = []
 
-        self.ExportToMail(err_file_list, MEC_Result_list)
+        for folder in MEC_Result_list.keys():
+            if folder not in FES_Result_list:
+                continue
+
+            FES_Result_files = FES_Result_list[folder]
+            MEC_Result_files = MEC_Result_list[folder]
+
+            Error_Row_Path = self.Report_Path + ("_" + folder.replace('\\', '_') if folder != "" else "") + ".xlsx"
+
+            Differ.InitializeTableData(FES_Result_files, MEC_Result_files)
+            cur_error_file_list = Differ.RunDiff(Error_Row_Path)
+
+            if len(cur_error_file_list) > 0:
+                Error_Row_Paths.append(Error_Row_Path)
+                err_file_list.extend(cur_error_file_list)
+
+        Differ.SaveJunit(self.Report_Path + ".xml")
+        results = []
+        for files_list in list(MEC_Result_list.values()):
+            results.extend(files_list)
+        self.ExportToMail(err_file_list, results, Error_Row_Paths)
+        self.ExportToShareFolder(err_file_list, Error_Row_Paths)
         return True
 
-    def ExportToMail(self, err_file_list:list[str], Target_file_list:list[str]):
-        zip_path = path.dirname(self.Report_Path) + '\\Exported Error Files.zip'
-        MyZiplib.MakeZip(zip_path, err_file_list)
+    def ExportToMail(self, err_file_list:list[str], Target_file_list:list[str], Error_Row_Paths:list[str]):
+        zip_path_Error_Files = self.Export_Path + '\\Exported Error Files.zip'
+        MyZiplib.MakeZip(zip_path_Error_Files, err_file_list)
+
+        zip_path_Error_Rows = self.Export_Path + '\\Exported Error Rows.zip'
+        MyZiplib.MakeZip(zip_path_Error_Rows, Error_Row_Paths)
 
         if 'pyj0827' not in self.MailTo:
             self.MailTo.append('pyj0827')
-        if 'Joyang' not in self.MailTo:
-            self.MailTo.append('Joyang')
-        if 'khseo' not in self.MailTo: 
-            self.MailTo.append('khseo')
+        if not IS_DEBUG:
+            if 'Joyang' not in self.MailTo:
+                self.MailTo.append('Joyang')
+            if 'khseo' not in self.MailTo: 
+                self.MailTo.append('khseo')
+            if 'ktpark' not in self.MailTo: 
+                self.MailTo.append('ktpark')
 
         error_ratio = (len(err_file_list) / len(Target_file_list)) * 100
 
@@ -133,10 +218,39 @@ class GenCivilPostRT:
         Test Date : {0}
         Target Civil DLL Path : {1}
         Target Solver DLL Path : {2}
-        Target Model File : {3}
-        Error Model File Percentage : {4}%({5}/{6})
-        '''. format(datetime.today().strftime('%Y-%m-%d'), self.Origin_Cvl_Path, self.Origin_Solver_Path, self.Origin_Model_Path, error_ratio, str(len(err_file_list)), str(len(Target_file_list))),
-        [self.Report_Path, self.Error_Row_Path, zip_path])
+        Error Model File Percentage : {3}%({4}/{5})
+
+        ---------------------------------------------------------------
+        Regression Test Result Copy To : {6}
+        ---------------------------------------------------------------
+
+        '''. format(datetime.today().strftime('%Y-%m-%d'), self.Origin_Cvl_Path, self.Origin_Solver_Path, error_ratio, str(len(err_file_list)), str(len(Target_file_list)), self.Export_Share_Path),
+        [self.Report_Path + ".xml", zip_path_Error_Files, zip_path_Error_Rows])
+        return 
+
+    def ExportToShareFolder(self, err_file_list:list[str], Error_Row_Paths:list[str] ):
+        if os.path.isdir(self.Export_Share_Path):
+            shutil.rmtree(self.Export_Share_Path)
+        os.makedirs(self.Export_Share_Path)
+
+        csv_path = os.path.join(self.Export_Path, "MEC_RESULT")
+
+        for file_path in err_file_list:
+            copy_to_path = os.path.join(self.Export_Share_Path, os.path.relpath(file_path, csv_path).replace('..\\', ''))
+            if not os.path.isdir(os.path.dirname(copy_to_path)):
+                os.makedirs(os.path.dirname(copy_to_path))
+            copyfile(file_path, copy_to_path)
+        
+        for file_path in Error_Row_Paths:
+            copy_to_path = os.path.join(self.Export_Share_Path, os.path.relpath(file_path, self.Export_Path).replace('..\\', ''))
+            if not os.path.isdir(os.path.dirname(copy_to_path)):
+                os.makedirs(os.path.dirname(copy_to_path))
+            copyfile(file_path,copy_to_path )
+
+        copy_to_path = os.path.join(self.Export_Share_Path, os.path.relpath(self.Report_Path, self.Export_Path).replace('..\\', ''))
+        if not os.path.isdir(os.path.dirname(copy_to_path)):
+            os.makedirs(os.path.dirname(copy_to_path))
+        copyfile(self.Report_Path + ".xml", copy_to_path + ".xml")
         return 
 
 if __name__ == "__main__":
