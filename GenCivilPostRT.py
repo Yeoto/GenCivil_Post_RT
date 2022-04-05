@@ -193,7 +193,7 @@ class GenCivilPostRT:
 
             if IS_DEBUG == True:
                 print('Paring Exported Result Data... ' + folder + ' Done!')
-                
+
             cur_error_file_list = Differ.RunDiff(Error_Row_Path, IS_DEBUG=IS_DEBUG)
 
             if len(cur_error_file_list) > 0:
