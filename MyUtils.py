@@ -3,6 +3,7 @@ from os.path import basename, splitext, isdir, isfile
 from os import remove
 from email.message import EmailMessage
 from sys import argv
+from typing import overload
 import zipfile
 import openpyxl
 from openpyxl.styles import PatternFill
@@ -77,55 +78,45 @@ class MyXLlib:
         self.__SheetModified = False
         return
 
-    def WriteLine(self, base_datas: list[(str, str)], tgt_datas: list[(str, str)] = [], col_offset:int = 1) -> None:
-        if len(base_datas) == 0 and len(tgt_datas) == 0:
+    def WriteDualLine(self, datas: list[(str, str, str)] = [], col_offset:int = 1) -> None:
+        if len(datas) <= 0:
             self.__line += 1
-            return
-        
-        if len(base_datas) == 0 and len(tgt_datas) > 0:
-            base_datas = tgt_datas.copy()
-            tgt_datas = []
-
-        if len(tgt_datas) > 0:
-            if col_offset > 0:
-                self.__worksheet.cell(row=self.__line, column=col_offset).value = "FES"
-            self.__SheetModified = True
+            return 
 
         if self.__line + 1 > 1000000:
             self.__worksheet.cell(row=self.__line, column=1).value = "Sheet Rows are too long. See Next Sheet, Please"
             self.CreateSheet(self.__TableName)
 
-        for i in range(len(base_datas)):
-            cell_tuple = base_datas[i]
-            cell = self.__worksheet.cell(row=self.__line, column=i + col_offset + 1)
-            cell.value = cell_tuple[0]
+        self.__SheetModified = True
 
-            if cell_tuple[1] == 'Failure':
-                # 값 오류 = 빨간색
-                cell.fill = PatternFill(start_color="FFC7CE", fill_type='solid')
-            elif cell_tuple[1] == 'Error':
-                # 타입 오류 = 노란색
-                cell.fill = PatternFill(start_color="FFEB9C", fill_type='solid')
-        self.__line += 1
-
-        if len(tgt_datas) > 0:
-            if col_offset > 0:
-                self.__worksheet.cell(row=self.__line, column=col_offset).value = "MEC"
-
-            for i in range(len(tgt_datas)):
-                cell_tuple = tgt_datas[i]
-                cell = self.__worksheet.cell(row=self.__line, column=i + col_offset + 1)
-                cell.value = cell_tuple[0]
-
-                if cell_tuple[1] == 'Failure':
-                    # 값 오류 = 빨간색
+        for i in range(len(datas)):
+            data = datas[i]
+            for j in range(2):
+                cell = self.__worksheet.cell(row=self.__line + j, column=i + col_offset + 1)
+                cell.value = data[j]
+                if data[2] == 'Failure':
                     cell.fill = PatternFill(start_color="FFC7CE", fill_type='solid')
-                elif cell_tuple[1] == 'Error':
-                    # 타입 오류 = 노란색
+                elif data[2] == 'Error':
                     cell.fill = PatternFill(start_color="FFEB9C", fill_type='solid')
 
-            self.__line += 1
+        self.__line += 2
 
+    def WriteLine(self, datas: list[str] = [], col_offset:int = 1) -> None:
+        if len(datas) <= 0:
+            self.__line += 1
+            return 
+        
+        if self.__line + 1 > 1000000:
+            self.__worksheet.cell(row=self.__line, column=1).value = "Sheet Rows are too long. See Next Sheet, Please"
+            self.CreateSheet(self.__TableName)
+
+        self.__SheetModified = True
+
+        for i in range(len(datas)):
+            cell = self.__worksheet.cell(row=self.__line, column=i + col_offset + 1)
+            cell.value = datas[i]
+
+        self.__line += 1
         return
 
     def save(self, path: str) -> None:
@@ -141,6 +132,7 @@ class MyXLlib:
         if len(self.__workbook.sheetnames) > 0:
             self.__workbook.save(path)
 
+        self.__workbook.close()
         return 
 
 if __name__ == "__main__":

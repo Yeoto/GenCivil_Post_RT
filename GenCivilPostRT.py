@@ -130,10 +130,14 @@ class GenCivilPostRT:
                 file_name = os.path.basename(file)
                 copyfile(file, os.path.join(FES_Src_Path, file_name))
 
-            print('Exporting FES Result Data... ' + folder)
+            if IS_DEBUG == True:
+                print('Exporting FES Result Data... ' + folder)
+
             if EXPORT_NEW_DATA == True and self.Base_Cvl_Exe_Path != '':
                 subprocess.run([self.Base_Cvl_Exe_Path, '/PRT', FES_Opt_FullPath])
-            print('Exporting FES Result Data... ' + folder + 'Done!')
+
+            if IS_DEBUG == True:
+                print('Exporting FES Result Data... ' + folder + ' Done!')
 
             FES_Result_list[folder] = [os.path.join(FES_Tgt_Path, f) for f in os.listdir(FES_Tgt_Path) if path.splitext(f)[1] == '.csv' and path.isfile(path.join(FES_Tgt_Path, f))]
 
@@ -151,10 +155,14 @@ class GenCivilPostRT:
                 file_name = path.basename(file)
                 copyfile(file, os.path.join(MEC_Src_Path, file_name))
 
-            print('Exporting MEC Result Data... ' + folder)
+            if IS_DEBUG == True:
+                print('Exporting MEC Result Data... ' + folder)
+
             if EXPORT_NEW_DATA == True:
                 subprocess.run([self.Test_Cvl_Exe_Path, '/PRT', MEC_Opt_FullPath])
-            print('Exporting MEC Result Data... ' + folder + 'Done!')
+
+            if IS_DEBUG == True:
+                print('Exporting MEC Result Data... ' + folder + ' Done!')
 
             MEC_Result_list[folder] = [os.path.join(MEC_Tgt_Path, f) for f in os.listdir(MEC_Tgt_Path) if path.splitext(f)[1] == '.csv' and path.isfile(path.join(MEC_Tgt_Path, f))]
 
@@ -178,8 +186,15 @@ class GenCivilPostRT:
 
             Error_Row_Path = self.Report_Path + ("_" + folder.replace('\\', '_') if folder != "" else "") + ".xlsx"
 
+            if IS_DEBUG == True:
+                print('Paring Exported Result Data... ' + folder)
+
             Differ.InitializeTableData(FES_Result_files, MEC_Result_files)
-            cur_error_file_list = Differ.RunDiff(Error_Row_Path)
+
+            if IS_DEBUG == True:
+                print('Paring Exported Result Data... ' + folder + ' Done!')
+                
+            cur_error_file_list = Differ.RunDiff(Error_Row_Path, IS_DEBUG=IS_DEBUG)
 
             if len(cur_error_file_list) > 0:
                 Error_Row_Paths.append(Error_Row_Path)
