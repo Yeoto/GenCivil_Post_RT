@@ -2,13 +2,10 @@
 from math import fabs
 from os import path
 import re
-from unittest import result
-
-from tqdm import tqdm
 from junit_xml_custom import TestSuite, TestCase
 from MyUtils import MyXLlib
 
-from multiprocessing import Lock, Manager, Pool, Value
+from multiprocessing import Pool
 
 class DiffException(Exception):
     Error_Code = str
@@ -40,6 +37,35 @@ class PostTableDiffer:
         self.Base_Table = self.Parse_TableData(base_file_list)
         self.Target_Table = self.Parse_TableData(Tgt_file_list)
 
+    def Parse_TableData(self, file_list):
+        LinePosDict = {}
+        for file_path in file_list:
+            LinePosList = {}
+            curTableID = 0
+            curTableName = ''
+            LinePosStart = (0, 0)
+
+            with open(file_path, 'r') as file:
+                lines = file.readlines()
+                for i in range(len(lines)):
+                    line = lines[i]
+                    p = re.compile(r'\( #DS_ID : (\d+) \) (.+)')
+                    m = p.match(line)
+                    if m == None:
+                        continue
+
+                    if LinePosStart != 0 and curTableID != 0:
+                        LinePosList[curTableID] = (curTableName, (LinePosStart, i - 1))
+
+                    curTableID = int(m.group(1))
+                    curTableName = m.group(2)
+                    LinePosStart = i + 2
+                    i+=1
+
+                LinePosDict[path.splitext(path.basename(file_path))[0]] = (file_path, LinePosList)
+
+        return LinePosDict
+
     def GetValue(num):
         try:
             v = float(num)
@@ -49,9 +75,9 @@ class PostTableDiffer:
                 return num.strip()
             return num
 
-    def RunDiff_Line(self, index, base_line, tgt_line, TypeErrorCnt:Value, ValueErrorCnt:Value):
-        base_datas = base_line.split(',')
-        tgt_datas = tgt_line.split(',')
+    def RunDiff_Line(self, index: int, base_line: str, tgt_line: str):
+        base_datas = base_line.strip().split(',')
+        tgt_datas = tgt_line.strip().split(',')
 
         TypeErrorSet = set()
         ValueErrorSet = set()
@@ -89,15 +115,13 @@ class PostTableDiffer:
             excel_datas.append((base_data, tgt_data, ''))
 
         IsErrorRow = (len(TypeErrorSet) + len(ValueErrorSet)) > 0
-        TypeErrorCnt.value += len(TypeErrorSet)
-        ValueErrorCnt.value += len(ValueErrorSet)
 
         if IsErrorRow == False:
             return (index, TypeErrorSet, ValueErrorSet)
 
         return (index, TypeErrorSet, ValueErrorSet)
 
-    def RunDiff(self, error_row_path: str, IS_DEBUG: bool) -> list[str]:
+    def RunDiff(self, error_row_path: str, Export_All_Err:bool = False, IS_DEBUG: bool = False) -> list[str]:
         def ThrowError(tc:TestCase, err_code:str, msg:str, err_file_list:list, file_path:str):
             if err_code == 'Failure':
                 tc.add_failure_info(msg)
@@ -149,20 +173,50 @@ class PostTableDiffer:
                 with open(Tgt_File_Path, 'r') as f:
                     tgt_lines = f.readlines()[LineSpan_Tgt[1][0]:LineSpan_Tgt[1][1]]
 
-                ValueErrorCnt = 0
-                TypeErrorCnt = 0
-
-                L = (int, list[(str, str, str)])
-                with Pool() as p:
-                    manager = Manager()
-                    TypeErrorCnt = manager.Value('i', 0)
-                    ValueErrorCnt = manager.Value('i', 0)
-                    L = p.starmap(self.RunDiff_Line, [(i, base_lines[i], tgt_lines[i], TypeErrorCnt, ValueErrorCnt) for i in range(1,len(tgt_lines))])
+                L = list[(int, set, set)]
+                if len(tgt_lines) > 10000:
+                    with Pool() as p:
+                        L = p.starmap(self.RunDiff_Line, [(i, base_lines[i], tgt_lines[i]) for i in range(1,len(tgt_lines))])
+                else:
+                    L = []
+                    for i in range(1, len(tgt_lines)):
+                        L.append(self.RunDiff_Line(i, base_lines[i], tgt_lines[i]))
 
                 L.sort(key=lambda index: index[0])
-                result_data = {i:(base, tgt) for i, base, tgt in L if len(base) > 0 or len(tgt) > 0}
-                result_data = result_data
+                result_data = {i:(TypeErr, ValueErr) for i, TypeErr, ValueErr in L if len(TypeErr) > 0 or len(ValueErr) > 0}
 
+                if len(result_data) > 0:
+                    diff_sheet.WriteLine([File_Name + ': ' + LineSpan_Tgt[0]], col_offset=0)
+                    diff_sheet.WriteLine([f.strip() for f in tgt_lines[0].strip().split(',')])
+
+                    index_list = []
+                    if len(result_data) > 100 and Export_All_Err == True:
+                        index_list = list(result_data.keys())[:50] + list(result_data.keys())[len(result_data.keys()) - 50:]
+                    else:
+                        index_list = list(result_data.keys())
+
+                    for i in index_list:
+                        if len(result_data) > 100 and index_list.index(i) == 50:
+                            diff_sheet.WriteLine(['Error Too Much. {0} Rows Hided'.format(len(tgt_lines) - 10)])
+
+                        base_datas = base_lines[i].strip().split(',')
+                        tgt_datas = tgt_lines[i].strip().split(',')
+
+                        excel_data = [(base_datas[j], tgt_datas[j], 'Failure' if j in result_data[i][1] else 'Error' if j in result_data[i][0] else '') for j in range(len(tgt_datas))]
+
+                        diff_sheet.WriteDualLine(excel_data)
+                        diff_sheet.WriteLine([])
+
+                    diff_sheet.WriteLine([])
+                    diff_sheet.WriteLine([])
+
+                    TypeErrorCnt = sum([len(result_data[idx][0]) for idx in result_data.keys()])
+                    ValueErrorCnt = sum([len(result_data[idx][1]) for idx in result_data.keys()])
+
+                    if ValueErrorCnt > 0:
+                        ThrowError(tc, 'Failure', 'Value Error {0}개'.format(ValueErrorCnt), err_file_list, Tgt_File_Path)
+                    if TypeErrorCnt > 0:
+                        ThrowError(tc, 'Error', 'Type Error {0}개'.format(TypeErrorCnt), err_file_list, Tgt_File_Path)
 
             ts = TestSuite('Post Table RT : ' + File_Name, tc_list)
             self.ts_list.append(ts)
@@ -174,37 +228,6 @@ class PostTableDiffer:
     def SaveJunit(self, report_path:str):
         with open(report_path, 'w', encoding='utf-8') as f:
             TestSuite.to_file(f, self.ts_list, prettyprint=False, encoding='utf-8')
-
-    def Parse_TableData(self, file_list):
-        LinePosDict = {}
-        for file_path in file_list:
-            LinePosList = {}
-            curTableID = 0
-            curTableName = ''
-            LinePosStart = (0, 0)
-
-            with open(file_path, 'r') as file:
-                lines = file.readlines()
-
-            for i in range(len(lines)):
-                line = lines[i]
-                p = re.compile(r'\( #DS_ID : (\d+) \) (.+)')
-                m = p.match(line)
-                if m == None:
-                    continue
-
-                if LinePosStart != 0 and curTableID != 0:
-                    LinePosList[curTableID] = (curTableName, (LinePosStart, i - 1))
-
-                curTableID = int(m.group(1))
-                curTableName = m.group(2)
-                LinePosStart = i + 2
-                i+=1
-
-            LinePosDict[path.splitext(path.basename(file_path))[0]] = (file_path, LinePosList)
-
-        return LinePosDict
-
         
 if __name__ == "__main__":
     pass

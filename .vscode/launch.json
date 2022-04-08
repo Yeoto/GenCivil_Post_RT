@@ -8,14 +8,14 @@
             "name": "Python: Current File",
             "type": "python",
             "request": "launch",
-            "program": "${file}",
+            "program": "GenCivilPostRT.py",
             "console": "integratedTerminal",
             "args": 
             [
                 "C:\\MIDAS\\Source\\genw_910\\bin\\CivilRelease\\x64\\CVLw.exe",
                 "C:\\MIDAS\\Source\\CivilNS\\bin\\CivilRelease\\x64\\CVLw.exe",
-                "C:\\MIDAS\\MODEL\\RT_Model\\FES",
-                "C:\\MIDAS\\MODEL\\RT_Model\\MEC",
+                "C:\\MIDAS\\MODEL\\RT_Model\\FES_MODEL",
+                "C:\\MIDAS\\MODEL\\RT_Model\\MEC_MODEL",
                 "C:\\MIDAS\\MODEL\\POST RT",
                 "Report",
                 ",",
@@ -23,7 +23,8 @@
                 "0.1",
                 "Report Civil Dll Path/asdasd",
                 "Report Solver Dll Path/qweqwe", 
-                "C:\\MIDAS\\MODEL\\RESULT"
+                "C:\\MIDAS\\MODEL\\RESULT",
+                "TRUE"
             ]
         }
     ]
