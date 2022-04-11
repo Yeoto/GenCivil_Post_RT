@@ -1,10 +1,9 @@
 #-*- coding: utf-8 -*-
 from math import fabs
-from os import path
+from os import path, cpu_count
 import re
 from junit_xml_custom import TestSuite, TestCase
 from MyUtils import MyXLlib
-
 from multiprocessing import Pool
 
 class DiffException(Exception):
@@ -45,11 +44,14 @@ class PostTableDiffer:
             curTableName = ''
             LinePosStart = (0, 0)
 
+            p = re.compile(r'\( #DS_ID : (\d+) \) (.+)')
             with open(file_path, 'r') as file:
                 lines = file.readlines()
                 for i in range(len(lines)):
                     line = lines[i]
-                    p = re.compile(r'\( #DS_ID : (\d+) \) (.+)')
+                    if line[0:5] != '( #DS':
+                        continue
+
                     m = p.match(line)
                     if m == None:
                         continue
@@ -174,8 +176,8 @@ class PostTableDiffer:
                     tgt_lines = f.readlines()[LineSpan_Tgt[1][0]:LineSpan_Tgt[1][1]]
 
                 L = list[(int, set, set)]
-                if len(tgt_lines) > 10000:
-                    with Pool() as p:
+                if len(tgt_lines) > 100000:
+                    with Pool(processes=cpu_count()*2) as p:
                         L = p.starmap(self.RunDiff_Line, [(i, base_lines[i], tgt_lines[i]) for i in range(1,len(tgt_lines))])
                 else:
                     L = []
@@ -190,14 +192,15 @@ class PostTableDiffer:
                     diff_sheet.WriteLine([f.strip() for f in tgt_lines[0].strip().split(',')])
 
                     index_list = []
-                    if len(result_data) > 100 and Export_All_Err == True:
+                    if len(result_data) > 100 and Export_All_Err == False:
                         index_list = list(result_data.keys())[:50] + list(result_data.keys())[len(result_data.keys()) - 50:]
                     else:
                         index_list = list(result_data.keys())
 
                     for i in index_list:
                         if len(result_data) > 100 and index_list.index(i) == 50:
-                            diff_sheet.WriteLine(['Error Too Much. {0} Rows Hided'.format(len(tgt_lines) - 10)])
+                            diff_sheet.WriteLine(['Error Too Much. {0} Rows Hided'.format(len(tgt_lines) - 100)])
+                            diff_sheet.WriteLine([])
 
                         base_datas = base_lines[i].strip().split(',')
                         tgt_datas = tgt_lines[i].strip().split(',')

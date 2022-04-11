@@ -104,7 +104,7 @@ class MyXLlib:
                 cell.fill = PatternFill(start_color="FFEB9C", fill_type='solid')                
             else:
                 cell.fill = None
-                
+
         self.__worksheet.append(self.__cells[0:len(datas)])
         self.__Line += 1
         return 
@@ -118,7 +118,7 @@ class MyXLlib:
             self.CreateSheet(self.__TableName)
         
         for i in range(2):
-            self.WriteOneLine(['FES' if i == 0 else 'MEC'] + [data[i] for data in datas], [None] + [data[2] for data in datas])
+            self.WriteOneLine(['FES' if i == 0 else 'MEC'] + [data[i].strip() for data in datas], [None] + [data[2] for data in datas])
 
         return 
 

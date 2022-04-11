@@ -13,7 +13,7 @@ from MyUtils import MyEmaillib, MyZiplib
 from cProfile import Profile
 from pstats import Stats
 
-IS_DEBUG = True
+IS_DEBUG = False
 IS_PROFILE = IS_DEBUG and False
 EXPORT_NEW_DATA = not IS_DEBUG or False
 
