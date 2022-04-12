@@ -1,4 +1,7 @@
+from multiprocessing import Value
+from multiprocessing.dummy import Process
 import shutil
+from time import sleep
 from ExportOptFile import ExportOptFile
 import sys
 import os
@@ -8,10 +11,20 @@ import subprocess
 from datetime import datetime
 
 from PostTableDiffer import PostTableDiffer
-from MyUtils import MyEmaillib, MyZiplib
+from MyUtils import MyDLGLib, MyEmaillib, MyZiplib
 
-IS_DEBUG = True
+from cProfile import Profile
+from pstats import Stats
+
+IS_DEBUG = False
+IS_PROFILE = IS_DEBUG and False
 EXPORT_NEW_DATA = not IS_DEBUG or False
+
+def FindAndCloseDlg(dlg_name, Running):
+    while Running.value == True:
+        MyDLGLib.FindAndCloseDialog(dlg_name)
+        sleep(2)
+    return
 
 class GenCivilPostRT:
     Base_Cvl_Exe_Path = ''
@@ -27,6 +40,8 @@ class GenCivilPostRT:
     Origin_Cvl_Path = ''
     Origin_Solver_Path = ''
     Export_Share_Path = ''
+    
+    Export_All_Error_Row = bool
 
     def __init__(self) -> None:
         Val_Tolerance = 1.0e-6
@@ -45,10 +60,6 @@ class GenCivilPostRT:
                 files[folder_name].append(os.path.join(dirpath, f))
             
         return files
-           #if isdir(f):
-           #    self.Recursive_GetFile(f, folder_name + '\\' + basename(f))
-           #if isfile(f):
-           #    self.file_list[folder_name].append(f)
 
     def Initialize(self, argv:list) -> bool:
         if len(argv) < 12:
@@ -84,6 +95,8 @@ class GenCivilPostRT:
         self.Origin_Cvl_Path = argv[10]
         self.Origin_Solver_Path = argv[11]
         self.Export_Share_Path = os.path.join(argv[12], datetime.today().strftime('%Y%m%d_%H%M%S'))
+
+        self.Export_All_Error_Row = argv[13].upper() == 'TRUE'
         return True
 
     def PrintDescription(self):
@@ -100,6 +113,7 @@ class GenCivilPostRT:
         "Percentage Tolerance (0.1)" 
         "Report Civil Dll Path" 
         "Report Solver Dll Path" 
+        "Export All Error Row"
         ''')
         return
 
@@ -118,11 +132,12 @@ class GenCivilPostRT:
 
         #Export FES Result
         FES_Result_list = {}
+        Export_FES_Result = EXPORT_NEW_DATA and self.Base_Cvl_Exe_Path != ''
         for folder, files in self.file_list_FES.items():
             FESOptFile = ExportOptFile(self.Export_Path, "FES", ['UNIT_FORCE,N', 'UNIT_LENGTH,mm'])
-            FES_Src_Path, FES_Tgt_Path, FES_Opt_FullPath = FESOptFile.Export(EXPORT_NEW_DATA and self.Base_Cvl_Exe_Path != '', folder)
+            FES_Src_Path, FES_Tgt_Path, FES_Opt_FullPath = FESOptFile.Export(Export_FES_Result, folder)
 
-            if os.path.isdir(FES_Src_Path) and EXPORT_NEW_DATA == True:
+            if os.path.isdir(FES_Src_Path) and Export_FES_Result == True:
                 rmtree(FES_Src_Path)
                 os.makedirs(FES_Src_Path)
 
@@ -133,7 +148,7 @@ class GenCivilPostRT:
             if IS_DEBUG == True:
                 print('Exporting FES Result Data... ' + folder)
 
-            if EXPORT_NEW_DATA == True and self.Base_Cvl_Exe_Path != '':
+            if Export_FES_Result:
                 subprocess.run([self.Base_Cvl_Exe_Path, '/PRT', FES_Opt_FullPath])
 
             if IS_DEBUG == True:
@@ -141,7 +156,11 @@ class GenCivilPostRT:
 
             FES_Result_list[folder] = [os.path.join(FES_Tgt_Path, f) for f in os.listdir(FES_Tgt_Path) if path.splitext(f)[1] == '.csv' and path.isfile(path.join(FES_Tgt_Path, f))]
 
-        #Export MEC Result
+        running_closer = Value('b', True)
+        p = Process(target=FindAndCloseDlg, args=('MECSolver.exe',running_closer))
+        p.start()
+        
+        #Export MEC Result 
         MEC_Result_list = {}
         for (folder, files) in self.file_list_MEC.items():
             MECOptFile = ExportOptFile(self.Export_Path, "MEC", ['UNIT_FORCE,N', 'UNIT_LENGTH,mm'])
@@ -165,6 +184,10 @@ class GenCivilPostRT:
                 print('Exporting MEC Result Data... ' + folder + ' Done!')
 
             MEC_Result_list[folder] = [os.path.join(MEC_Tgt_Path, f) for f in os.listdir(MEC_Tgt_Path) if path.splitext(f)[1] == '.csv' and path.isfile(path.join(MEC_Tgt_Path, f))]
+        
+        running_closer.value = False
+        sleep(5)
+        p.join()
 
         #Clean Up Results
         if os.path.isdir(self.Export_Path):
@@ -193,8 +216,17 @@ class GenCivilPostRT:
 
             if IS_DEBUG == True:
                 print('Paring Exported Result Data... ' + folder + ' Done!')
-                
-            cur_error_file_list = Differ.RunDiff(Error_Row_Path, IS_DEBUG=IS_DEBUG)
+
+            if IS_PROFILE == True:
+                pr = Profile()
+                pr.enable()
+                cur_error_file_list = pr.runcall(Differ.RunDiff, Error_Row_Path, Export_All_Err=self.Export_All_Error_Row, IS_DEBUG=True)
+                stats = Stats(pr)
+                stats.strip_dirs()
+                stats.sort_stats('cumulative')
+                stats.print_stats()
+            else:
+                cur_error_file_list = Differ.RunDiff(Error_Row_Path, Export_All_Err=self.Export_All_Error_Row, IS_DEBUG=False)
 
             if len(cur_error_file_list) > 0:
                 Error_Row_Paths.append(Error_Row_Path)
