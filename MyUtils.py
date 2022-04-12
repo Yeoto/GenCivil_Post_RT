@@ -6,6 +6,14 @@ import zipfile
 from openpyxl import Workbook
 from openpyxl.styles import PatternFill
 from openpyxl.cell import WriteOnlyCell
+import pygetwindow as pw
+
+class MyDLGLib:
+    def FindAndCloseDialog(dialog_name):
+        win_list = pw.getWindowsWithTitle(dialog_name)
+        for win in win_list:
+            win.close()
+        return
 
 class MyZiplib:
     def MakeZip(export_path:str, zip_file_list: list[str]) -> None:
@@ -103,7 +111,7 @@ class MyXLlib:
             elif additional_data == 'Error':
                 cell.fill = PatternFill(start_color="FFEB9C", fill_type='solid')                
             else:
-                cell.fill = None
+                cell.fill = PatternFill()
 
         self.__worksheet.append(self.__cells[0:len(datas)])
         self.__Line += 1
@@ -152,27 +160,4 @@ class MyXLlib:
         return 
 
 if __name__ == "__main__":
-    #MyEmaillib.Send_Report(['pyj0827'], [argv[5], 'C:\\MIDAS\\MODEL\\POST RT\\MEC_RESULT.zip'])
-    wb = Workbook(write_only=True)
-    ws = wb.create_sheet()
-    
-    for i in range(100000):
-        ws.append([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
-    
-    wb.save('C:\\MIDAS\\temp.xlsx')
-
-    wb = Workbook(write_only=True)
-    ws = wb.create_sheet()
-    
-    for i in range(100000):
-        ws.append([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
-    
-    wb.save('C:\\MIDAS\\temp2.xlsx')
-
-    wb = Workbook(write_only=True)
-    ws = wb.create_sheet()
-    
-    for i in range(100000):
-        ws.append([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
-    
-    wb.save('C:\\MIDAS\\temp3.xlsx')
+    MyDLGLib.FindAndCloseDialog('제목 없음 - Windows 메모장')

@@ -2,6 +2,8 @@
 from math import fabs
 from os import path, cpu_count
 import re
+
+from tqdm import tqdm
 from junit_xml_custom import TestSuite, TestCase
 from MyUtils import MyXLlib
 from multiprocessing import Pool
@@ -137,7 +139,7 @@ class PostTableDiffer:
 
         err_file_list = []
         list_table_keys = list(self.Target_Table.keys())
-        for File_Name in list_table_keys:
+        for File_Name in tqdm(list_table_keys):
             if IS_DEBUG == True:
                 print('{0}/{1} : {2}'.format(list_table_keys.index(File_Name) + 1, len(list_table_keys), File_Name))
 
